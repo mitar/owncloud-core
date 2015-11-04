@@ -71,6 +71,15 @@ class DBConfigService {
 		return $this->getMountsFromQuery($query);
 	}
 
+	protected function getForQuery(IQueryBuilder $builder, $type, $value) {
+		$query = $builder->select(['m.mount_id', 'mount_point', 'storage_backend', 'auth_backend', 'priority', 'm.type'])
+			->from('external_mounts', 'm')
+			->innerJoin('external_mounts', 'a', 'external_applicable', 'm.mount_id = a.mount_id')
+			->where($builder->expr()->eq('a.type', $builder->createNamedParameter($type, \PDO::PARAM_INT)))
+			->andWhere($builder->expr()->eq('a.value', $builder->createNamedParameter($value, \PDO::PARAM_STR)));
+		return $query;
+	}
+
 	/**
 	 * @param int $type any of the self::APPLICABLE_TYPE_ constants
 	 * @param string|null $value user_id, group_id or null for global mounts
@@ -78,11 +87,33 @@ class DBConfigService {
 	 */
 	public function getMountsFor($type, $value) {
 		$builder = $this->connection->getQueryBuilder();
-		$query = $builder->select(['m.mount_id', 'mount_point', 'storage_backend', 'auth_backend', 'priority', 'm.type'])
-			->from('external_mounts', 'm')
-			->innerJoin('external_mounts', 'a', 'external_applicable', 'm.mount_id = a.mount_id')
-			->where($builder->expr()->eq('a.type', $builder->createNamedParameter($type, \PDO::PARAM_INT)))
-			->andWhere($builder->expr()->eq('a.value', $builder->createNamedParameter($value, \PDO::PARAM_STR)));
+		$query = $this->getForQuery($builder, $type, $value);
+
+		return $this->getMountsFromQuery($query);
+	}
+
+	/**
+	 * @param int $type any of the self::APPLICABLE_TYPE_ constants
+	 * @param string|null $value user_id, group_id or null for global mounts
+	 * @return array
+	 */
+	public function getAdminMountsFor($type, $value) {
+		$builder = $this->connection->getQueryBuilder();
+		$query = $this->getForQuery($builder, $type, $value);
+		$query->andWhere($builder->expr()->eq('type', self::MOUNT_TYPE_ADMIN));
+
+		return $this->getMountsFromQuery($query);
+	}
+
+	/**
+	 * @param int $type any of the self::APPLICABLE_TYPE_ constants
+	 * @param string|null $value user_id, group_id or null for global mounts
+	 * @return array
+	 */
+	public function getUserMountsFor($type, $value) {
+		$builder = $this->connection->getQueryBuilder();
+		$query = $this->getForQuery($builder, $type, $value);
+		$query->andWhere($builder->expr()->eq('type', self::MOUNT_TYPE_PERSONAl));
 
 		return $this->getMountsFromQuery($query);
 	}
