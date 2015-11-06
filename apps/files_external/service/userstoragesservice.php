@@ -35,7 +35,6 @@ use \OCA\Files_External\Service\UserTrait;
  * (aka personal storages)
  */
 class UserStoragesService extends StoragesService {
-
 	use UserTrait;
 
 	/**

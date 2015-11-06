@@ -79,8 +79,8 @@ abstract class StoragesService {
 			$mount['auth_backend'],
 			$mount['config'],
 			$mount['options'],
-			$applicableUsers,
-			$applicableGroups,
+			array_values($applicableUsers),
+			array_values($applicableGroups),
 			$mount['priority']
 		);
 		$config->setId($mount['mount_id']);
@@ -112,13 +112,13 @@ abstract class StoragesService {
 	 * @throws NotFoundException if the storage with the given id was not found
 	 */
 	public function getStorage($id) {
-		$allStorages = $this->readConfig();
+		$mount = $this->dbConfig->getMountById($id);
 
-		if (!isset($allStorages[$id])) {
+		if (!is_array($mount)) {
 			throw new NotFoundException('Storage with id "' . $id . '" not found');
 		}
 
-		return $allStorages[$id];
+		return $this->getStorageConfigFromDBMount($mount);
 	}
 
 	/**
