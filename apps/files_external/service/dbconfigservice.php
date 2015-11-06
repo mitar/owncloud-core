@@ -113,7 +113,7 @@ class DBConfigService {
 	public function getUserMountsFor($type, $value) {
 		$builder = $this->connection->getQueryBuilder();
 		$query = $this->getForQuery($builder, $type, $value);
-		$query->andWhere($builder->expr()->eq('type', self::MOUNT_TYPE_PERSONAl));
+		$query->andWhere($builder->expr()->eq('m.type', $builder->expr()->literal(self::MOUNT_TYPE_PERSONAl, \PDO::PARAM_INT)));
 
 		return $this->getMountsFromQuery($query);
 	}
@@ -127,6 +127,9 @@ class DBConfigService {
 	 * @return int the id of the new mount
 	 */
 	public function addMount($mountPoint, $storageBackend, $authBackend, $priority, $type) {
+		if (!$priority) {
+			$priority = 100;
+		}
 		$builder = $this->connection->getQueryBuilder();
 		$query = $builder->insert('external_mounts')
 			->values([
@@ -264,6 +267,7 @@ class DBConfigService {
 			$result[$mountId] = [];
 		}
 		foreach ($rows as $row) {
+			$row['type'] = (int)$row['type'];
 			$result[$row['mount_id']][] = $row;
 		}
 		return $result;
