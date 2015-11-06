@@ -67,14 +67,14 @@ class DBConfigService {
 		$builder = $this->connection->getQueryBuilder();
 		$query = $builder->select(['mount_id', 'mount_point', 'storage_backend', 'auth_backend', 'priority', 'type'])
 			->from('external_mounts')
-			->where($builder->expr()->eq('type', self::MOUNT_TYPE_ADMIN));
+			->where($builder->expr()->eq('type', $builder->expr()->literal(self::MOUNT_TYPE_ADMIN, \PDO::PARAM_INT)));
 		return $this->getMountsFromQuery($query);
 	}
 
 	protected function getForQuery(IQueryBuilder $builder, $type, $value) {
 		$query = $builder->select(['m.mount_id', 'mount_point', 'storage_backend', 'auth_backend', 'priority', 'm.type'])
 			->from('external_mounts', 'm')
-			->innerJoin('external_mounts', 'a', 'external_applicable', 'm.mount_id = a.mount_id')
+			->innerJoin('m', 'external_applicable', 'a', 'm.mount_id = a.mount_id')
 			->where($builder->expr()->eq('a.type', $builder->createNamedParameter($type, \PDO::PARAM_INT)))
 			->andWhere($builder->expr()->eq('a.value', $builder->createNamedParameter($value, \PDO::PARAM_STR)));
 		return $query;
@@ -100,7 +100,7 @@ class DBConfigService {
 	public function getAdminMountsFor($type, $value) {
 		$builder = $this->connection->getQueryBuilder();
 		$query = $this->getForQuery($builder, $type, $value);
-		$query->andWhere($builder->expr()->eq('type', self::MOUNT_TYPE_ADMIN));
+		$query->andWhere($builder->expr()->eq('m.type', $builder->expr()->literal(self::MOUNT_TYPE_ADMIN, \PDO::PARAM_INT)));
 
 		return $this->getMountsFromQuery($query);
 	}

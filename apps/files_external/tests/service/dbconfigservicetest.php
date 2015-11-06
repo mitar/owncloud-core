@@ -158,4 +158,38 @@ class DBConfigServiceTest extends TestCase {
 		$mount = $this->dbConfig->getMountById($id);
 		$this->assertEquals(['foo' => 'bar', 'foo2' => 'bar2'], $mount['options']);
 	}
+
+	public function testGetMountsFor() {
+		$mounts = $this->dbConfig->getMountsFor(DBConfigService::APPLICABLE_TYPE_USER, 'test');
+		$this->assertEquals([], $mounts);
+
+		$id = $this->addMount('/test', 'foo', 'bar', 100, DBConfigService::MOUNT_TYPE_ADMIN);
+		$this->dbConfig->addApplicable($id, DBConfigService::APPLICABLE_TYPE_USER, 'test');
+
+		$mounts = $this->dbConfig->getMountsFor(DBConfigService::APPLICABLE_TYPE_USER, 'test');
+		$this->assertCount(1, $mounts);
+		$this->assertEquals($id, $mounts[0]['mount_id']);
+	}
+
+	public function testGetAdminMounts() {
+		$id1 = $this->addMount('/test', 'foo', 'bar', 100, DBConfigService::MOUNT_TYPE_ADMIN);
+		$this->addMount('/test2', 'foo2', 'bar2', 100, DBConfigService::MOUNT_TYPE_PERSONAl);
+
+		$mounts = $this->dbConfig->getAdminMounts();
+		$this->assertCount(1, $mounts);
+		$this->assertEquals($id1, $mounts[0]['mount_id']);
+	}
+
+	public function testGetAdminMountsFor() {
+		$id1 = $this->addMount('/test', 'foo', 'bar', 100, DBConfigService::MOUNT_TYPE_ADMIN);
+		$this->addMount('/test2', 'foo2', 'bar2', 100, DBConfigService::MOUNT_TYPE_ADMIN);
+		$id3 = $this->addMount('/test3', 'foo3', 'bar3', 100, DBConfigService::MOUNT_TYPE_PERSONAl);
+
+		$this->dbConfig->addApplicable($id1, DBConfigService::APPLICABLE_TYPE_USER, 'test');
+		$this->dbConfig->addApplicable($id3, DBConfigService::APPLICABLE_TYPE_USER, 'test');
+
+		$mounts = $this->dbConfig->getAdminMountsFor(DBConfigService::APPLICABLE_TYPE_USER, 'test');
+		$this->assertCount(1, $mounts);
+		$this->assertEquals($id1, $mounts[0]['mount_id']);
+	}
 }
