@@ -107,6 +107,27 @@ class DBConfigService {
 
 	/**
 	 * @param int $type any of the self::APPLICABLE_TYPE_ constants
+	 * @param string[] $values user_ids or group_ids
+	 * @return array
+	 */
+	public function getAdminMountsForMultiple($type, array $values) {
+		$builder = $this->connection->getQueryBuilder();
+		$params = array_map(function ($value) use ($builder) {
+			return $builder->createNamedParameter($value, \PDO::PARAM_STR);
+		}, $values);
+
+		$query = $builder->select(['m.mount_id', 'mount_point', 'storage_backend', 'auth_backend', 'priority', 'm.type'])
+			->from('external_mounts', 'm')
+			->innerJoin('m', 'external_applicable', 'a', 'm.mount_id = a.mount_id')
+			->where($builder->expr()->eq('a.type', $builder->createNamedParameter($type, \PDO::PARAM_INT)))
+			->andWhere($builder->expr()->in('a.value', $params));
+		$query->andWhere($builder->expr()->eq('m.type', $builder->expr()->literal(self::MOUNT_TYPE_ADMIN, \PDO::PARAM_INT)));
+
+		return $this->getMountsFromQuery($query);
+	}
+
+	/**
+	 * @param int $type any of the self::APPLICABLE_TYPE_ constants
 	 * @param string|null $value user_id, group_id or null for global mounts
 	 * @return array
 	 */
@@ -267,7 +288,9 @@ class DBConfigService {
 			$result[$mountId] = [];
 		}
 		foreach ($rows as $row) {
-			$row['type'] = (int)$row['type'];
+			if (isset($row['type'])) {
+				$row['type'] = (int)$row['type'];
+			}
 			$result[$row['mount_id']][] = $row;
 		}
 		return $result;
