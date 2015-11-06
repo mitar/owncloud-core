@@ -93,6 +93,23 @@ class UserStoragesService extends StoragesService {
 		}
 	}
 
+	protected function getType() {
+		return DBConfigService::MOUNT_TYPE_PERSONAl;
+	}
+
+	/**
+	 * Add new storage to the configuration
+	 *
+	 * @param StorageConfig $newStorage storage attributes
+	 *
+	 * @return StorageConfig storage config, with added id
+	 */
+	public function addStorage(StorageConfig $newStorage) {
+		$config = parent::addStorage($newStorage);
+		$this->dbConfig->addApplicable($config->getId(), DBConfigService::APPLICABLE_TYPE_USER, $this->getUser()->getUID());
+		return $config;
+	}
+
 	/**
 	 * Get the visibility type for this controller, used in validation
 	 *

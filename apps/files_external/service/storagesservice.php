@@ -73,7 +73,7 @@ abstract class StoragesService {
 			return $applicable['value'];
 		}, $applicableGroups);
 
-		return $this->createStorage(
+		$config = $this->createStorage(
 			$mount['mount_point'],
 			$mount['storage_backend'],
 			$mount['auth_backend'],
@@ -83,6 +83,8 @@ abstract class StoragesService {
 			$applicableGroups,
 			$mount['priority']
 		);
+		$config->setId($mount['mount_id']);
+		return $config;
 	}
 
 	/**
@@ -323,15 +325,15 @@ abstract class StoragesService {
 		$existingMount = $this->dbConfig->getMountById($id);
 
 		if (!is_array($existingMount)) {
-			throw new NotFoundException('Storage with id "' . $id . '" not found');
+			throw new NotFoundException('Storage with id "' . $id . '" not found while updating storage');
 		}
 
 		$oldStorage = $this->getStorageConfigFromDBMount($existingMount);
 
 		$removedUsers = array_diff($oldStorage->getApplicableUsers(), $updatedStorage->getApplicableUsers());
-		$removedGroups = array_diff($oldStorage->getApplicableUsers(), $updatedStorage->getApplicableUsers());
+		$removedGroups = array_diff($oldStorage->getApplicableGroups(), $updatedStorage->getApplicableGroups());
 		$addedUsers = array_diff($updatedStorage->getApplicableUsers(), $oldStorage->getApplicableUsers());
-		$addedGroups = array_diff($updatedStorage->getApplicableUsers(), $oldStorage->getApplicableUsers());
+		$addedGroups = array_diff($updatedStorage->getApplicableGroups(), $oldStorage->getApplicableGroups());
 
 		foreach ($removedUsers as $user) {
 			$this->dbConfig->removeApplicable($id, DBConfigService::APPLICABLE_TYPE_USER, $user);
