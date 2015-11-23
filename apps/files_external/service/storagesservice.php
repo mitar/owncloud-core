@@ -73,18 +73,28 @@ abstract class StoragesService {
 			return $applicable['value'];
 		}, $applicableGroups);
 
-		$config = $this->createStorage(
-			$mount['mount_point'],
-			$mount['storage_backend'],
-			$mount['auth_backend'],
-			$mount['config'],
-			$mount['options'],
-			array_values($applicableUsers),
-			array_values($applicableGroups),
-			$mount['priority']
-		);
-		$config->setId($mount['mount_id']);
-		return $config;
+		try {
+			$config = $this->createStorage(
+				$mount['mount_point'],
+				$mount['storage_backend'],
+				$mount['auth_backend'],
+				$mount['config'],
+				$mount['options'],
+				array_values($applicableUsers),
+				array_values($applicableGroups),
+				$mount['priority']
+			);
+			$config->setId($mount['mount_id']);
+			return $config;
+		} catch (\UnexpectedValueException $e) {
+			// dont die if a storage backend doesn't exist
+			\OCP\Util::writeLog(
+				'files_external',
+				'Could not load storage: "' . $e->getMessage() . '"',
+				\OCP\Util::ERROR
+			);
+			return null;
+		}
 	}
 
 	/**
@@ -95,6 +105,9 @@ abstract class StoragesService {
 	protected function readConfig() {
 		$mounts = $this->readDBConfig();
 		$configs = array_map([$this, 'getStorageConfigFromDBMount'], $mounts);
+		$configs = array_filter($configs, function ($config) {
+			return $config instanceof StorageConfig;
+		});
 
 		$keys = array_map(function (StorageConfig $config) {
 			return $config->getId();
