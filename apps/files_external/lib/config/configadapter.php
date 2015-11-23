@@ -23,6 +23,7 @@
 
 namespace OCA\Files_External\Config;
 
+use OCA\Files_external\Migration\StorageMigrator;
 use OCP\Files\Storage;
 use OC\Files\Mount\MountPoint;
 use OCP\Files\Storage\IStorageFactory;
@@ -45,17 +46,22 @@ class ConfigAdapter implements IMountProvider {
 
 	/** @var UserGlobalStoragesService */
 	private $userGlobalStoragesService;
+	/** @var StorageMigrator  */
+	private $migrator;
 
 	/**
 	 * @param UserStoragesService $userStoragesService
 	 * @param UserGlobalStoragesService $userGlobalStoragesService
+	 * @param StorageMigrator $migrator
 	 */
 	public function __construct(
 		UserStoragesService $userStoragesService,
-		UserGlobalStoragesService $userGlobalStoragesService
+		UserGlobalStoragesService $userGlobalStoragesService,
+		StorageMigrator $migrator
 	) {
 		$this->userStoragesService = $userStoragesService;
 		$this->userGlobalStoragesService = $userGlobalStoragesService;
+		$this->migrator = $migrator;
 	}
 
 	/**
@@ -109,6 +115,8 @@ class ConfigAdapter implements IMountProvider {
 	 * @return \OCP\Files\Mount\IMountPoint[]
 	 */
 	public function getMountsForUser(IUser $user, IStorageFactory $loader) {
+		$this->migrator->migrateUser();
+
 		$mounts = [];
 
 		$this->userStoragesService->setUser($user);
@@ -125,7 +133,7 @@ class ConfigAdapter implements IMountProvider {
 
 			$mount = new MountPoint(
 				$impl,
-				'/'.$user->getUID().'/files' . $storage->getMountPoint(),
+				'/' . $user->getUID() . '/files' . $storage->getMountPoint(),
 				null,
 				$loader,
 				$storage->getMountOptions()
@@ -146,7 +154,7 @@ class ConfigAdapter implements IMountProvider {
 				$this->userStoragesService,
 				$storage->getId(),
 				$impl,
-				'/'.$user->getUID().'/files' . $storage->getMountPoint(),
+				'/' . $user->getUID() . '/files' . $storage->getMountPoint(),
 				null,
 				$loader,
 				$storage->getMountOptions()
