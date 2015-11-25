@@ -393,7 +393,7 @@ class Test_Util extends \Test\TestCase {
 		$config->setSystemValue('front_controller_active', false);
 
 		$_REQUEST['redirect_url'] = 'myRedirectUrl.com';
-		$this->assertSame('http://localhost/'.\OC::$WEBROOT.'myRedirectUrl.com', OC_Util::getDefaultPageUrl());
+		$this->assertSame('http://localhost'.\OC::$WEBROOT.'/myRedirectUrl.com', OC_Util::getDefaultPageUrl());
 
 		$config->setSystemValue('front_controller_active', $previous);
 	}
@@ -404,7 +404,7 @@ class Test_Util extends \Test\TestCase {
 		$config->setSystemValue('front_controller_active', false);
 
 		$_REQUEST['redirect_url'] = 'myRedirectUrl.com@foo.com:a';
-		$this->assertSame('http://localhost/'.\OC::$WEBROOT.'index.php/apps/files/', OC_Util::getDefaultPageUrl());
+		$this->assertSame('http://localhost'.\OC::$WEBROOT.'/index.php/apps/files/', OC_Util::getDefaultPageUrl());
 
 		$config->setSystemValue('front_controller_active', $previous);
 	}
