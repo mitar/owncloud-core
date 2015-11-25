@@ -25,7 +25,8 @@ $cm->register(function() use ($cm) {
 	$userId = \OC::$server->getUserSession()->getUser()->getUID();
 	$cardDav = new \OCA\DAV\CardDAV\CardDavBackend($db);
 	$addressBooks = $cardDav->getAddressBooksForUser("principals/$userId");
+	$dbHandler = new \OCA\DAV\CardDAV\DbHandler(\OC::$server->getDatabaseConnection());
 	foreach ($addressBooks as $addressBook)  {
-		$cm->registerAddressBook(new OCA\DAV\CardDAV\AddressBookImpl($addressBook));
+		$cm->registerAddressBook(new OCA\DAV\CardDAV\AddressBookImpl($addressBook, $cardDav, $dbHandler));
 	}
 });

@@ -21,11 +21,31 @@
 
 namespace OCA\DAV\CardDAV;
 
-class AddressBookImpl implements \OCP\IAddressBook {
+use OCP\IAddressBook;
 
-	public function __construct(array $values, CardDavBackend $backend) {
+class AddressBookImpl implements IAddressBook {
+
+	/** @var CardDavBackend */
+	private $backend;
+
+	/** @var array */
+	private $values;
+
+	/** @var DbHandler */
+	private $dbHandler;
+
+	/**
+	 * AddressBookImpl constructor.
+	 *
+	 * @param array $values
+	 * @param CardDavBackend $backend
+	 * @param DbHandler $dbHandler
+	 */
+	public function __construct(array $values, CardDavBackend $backend, DbHandler $dbHandler) {
 		$this->values = $values;
 		$this->backend = $backend;
+		$this->dbHandler = $dbHandler;
+
 		/*
 		 * 				'id'  => $row['id'],
 				'uri' => $row['uri'],
@@ -95,6 +115,7 @@ class AddressBookImpl implements \OCP\IAddressBook {
 	 * @since 5.0.0
 	 */
 	public function delete($id) {
-		// TODO: Implement delete() method.
+		$uri = $this->dbHandler->getCardUri($id);
+		return $this->backend->deleteCard($this->values['id'], $uri);
 	}
 }
