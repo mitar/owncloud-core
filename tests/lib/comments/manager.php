@@ -507,4 +507,17 @@ class Test_Comments_Manager extends Test\TestCase
 		$this->assertTrue($wasSuccessful);
 	}
 
+	public function testOverwriteDefaultManager() {
+		$config = \oc::$server->getConfig();
+		$defaultManagerFactory = $config->getSystemValue('comments.managerFactory', '\OC\Comments\ManagerFactory');
+
+		$managerMock = $this->getMock('\OCP\Comments\ICommentsManager');
+
+		$config->setSystemValue('comments.managerFactory', 'Test_Comments_FakeFactory');
+		$manager = \oc::$server->getCommentsManager();
+		$this->assertEquals($managerMock, $manager);
+
+		$config->setSystemValue('comments.managerFactory', $defaultManagerFactory);
+	}
+
 }
