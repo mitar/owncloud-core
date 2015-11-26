@@ -26,6 +26,8 @@ use OC\Hooks\Emitter;
 use OC\Hooks\EmitterTrait;
 use OCP\Files\Config\IMountProviderCollection;
 use OCP\Files\Config\IMountProvider;
+use OCP\Files\Config\IUserMountCache;
+use OCP\Files\Mount\IMountPoint;
 use OCP\Files\Storage\IStorageFactory;
 use OCP\IUser;
 
@@ -43,10 +45,17 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	private $loader;
 
 	/**
-	 * @param \OCP\Files\Storage\IStorageFactory $loader
+	 * @var \OCP\Files\Config\IUserMountCache
 	 */
-	public function __construct(IStorageFactory $loader) {
+	private $mountCache;
+
+	/**
+	 * @param \OCP\Files\Storage\IStorageFactory $loader
+	 * @param IUserMountCache $mountCache
+	 */
+	public function __construct(IStorageFactory $loader, IUserMountCache $mountCache) {
 		$this->loader = $loader;
+		$this->mountCache = $mountCache;
 	}
 
 	/**
@@ -76,5 +85,22 @@ class MountProviderCollection implements IMountProviderCollection, Emitter {
 	public function registerProvider(IMountProvider $provider) {
 		$this->providers[] = $provider;
 		$this->emit('\OC\Files\Config', 'registerMountProvider', [$provider]);
+	}
+
+	/**
+	 * Register a mount point
+	 *
+	 * @param IUser $user
+	 * @param IMountPoint $mountPoint
+	 */
+	public function registerMount(IUser $user, IMountPoint $mountPoint) {
+		$this->mountCache->registerMount($user, $mountPoint);
+	}
+
+	/**
+	 * @return IUserMountCache
+	 */
+	public function getMountCache() {
+		return $this->mountCache;
 	}
 }

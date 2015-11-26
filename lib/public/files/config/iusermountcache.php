@@ -1,6 +1,5 @@
 <?php
 /**
- * @author Morris Jobke <hey@morrisjobke.de>
  * @author Robin Appelman <icewind@owncloud.com>
  *
  * @copyright Copyright (c) 2015, ownCloud, Inc.
@@ -26,33 +25,35 @@ use OCP\Files\Mount\IMountPoint;
 use OCP\IUser;
 
 /**
- * Manages the different mount providers
- * @since 8.0.0
+ * @since 9.0.0
  */
-interface IMountProviderCollection {
+interface IUserMountCache {
 	/**
-	 * Get all configured mount points for the user
+	 * Register a mount for a user to the cache
 	 *
-	 * @param \OCP\IUser $user
-	 * @return \OCP\Files\Mount\IMountPoint[]
-	 * @since 8.0.0
+	 * @param IUser $user
+	 * @param IMountPoint $mount
+	 * @since 9.0.0
+	 */
+	public function registerMount(IUser $user, IMountPoint $mount);
+
+	/**
+	 * @param IUser $user
+	 * @return ICachedMountInfo[]
+	 * @since 9.0.0
 	 */
 	public function getMountsForUser(IUser $user);
 
 	/**
-	 * Add a provider for mount points
-	 *
-	 * @param \OCP\Files\Config\IMountProvider $provider
-	 * @since 8.0.0
-	 */
-	public function registerProvider(IMountProvider $provider);
-
-	/**
-	 * Register a mount point
-	 *
-	 * @param IUser $user
-	 * @param IMountPoint $mountPoint
+	 * @param int $numericStorageId
+	 * @return ICachedMountInfo[]
 	 * @since 9.0.0
 	 */
-	public function registerMount(IUser $user, IMountPoint $mountPoint);
+	public function getMountsForStorageId($numericStorageId);
+
+	/**
+	 * @param int $rootFileId
+	 * @return ICachedMountInfo[]
+	 */
+	public function getMountsForRootId($rootFileId);
 }
