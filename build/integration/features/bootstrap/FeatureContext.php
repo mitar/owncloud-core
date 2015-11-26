@@ -27,6 +27,9 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	/** @var int */
 	private $sharingApiVersion = 1;
 
+	/** @var string*/
+	private $davPath = "remote.php/webdav";
+
 	/** @var SimpleXMLElement */
 	private $lastShareData = null;
 
@@ -60,6 +63,8 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	/**
 	 * Parses the xml answer to get ocs response which doesn't match with
 	 * http one in v1 of the api.
+	 * @param ResponseInterface $response
+	 * @return string
 	 */
 	public function getOCSResponse($response) {
 		return $response->xml()->meta[0]->statuscode;
@@ -67,6 +72,8 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	/**
 	 * Parses the xml answer to get the array of users returned.
+	 * @param ResponseInterface $resp
+	 * @return array
 	 */
 	public function getArrayOfUsersResponded($resp) {
 		$listCheckedElements = $resp->xml()->data[0]->users[0]->element;
@@ -76,6 +83,8 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	/**
 	 * Parses the xml answer to get the array of groups returned.
+	 * @param ResponseInterface $resp
+	 * @return array
 	 */
 	public function getArrayOfGroupsResponded($resp) {
 		$listCheckedElements = $resp->xml()->data[0]->groups[0]->element;
@@ -85,6 +94,8 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	/**
 	 * Parses the xml answer to get the array of subadmins returned.
+	 * @param ResponseInterface $resp
+	 * @return array
 	 */
 	public function getArrayOfSubadminsResponded($resp) {
 		$listCheckedElements = $resp->xml()->data[0]->element;
@@ -94,6 +105,8 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	/**
 	 * Parses the xml answer to get the array of apps returned.
+	 * @param ResponseInterface $resp
+	 * @return array
 	 */
 	public function getArrayOfAppsResponded($resp) {
 		$listCheckedElements = $resp->xml()->data[0]->apps[0]->element;
@@ -108,10 +121,10 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		$a = array_map(function($subArray) { return $subArray[0]; }, $arrayOfArrays);
 		return $a;
 	}
-   
+
 	/**
 	 * @Then /^users returned are$/
-	 * @param \Behat\Gherkin\Node\TableNode|null $formData
+	 * @param \Behat\Gherkin\Node\TableNode|null $usersList
 	 */
 	public function theUsersShouldBe($usersList) {
 		if ($usersList instanceof \Behat\Gherkin\Node\TableNode) {
@@ -125,7 +138,7 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	/**
 	 * @Then /^groups returned are$/
-	 * @param \Behat\Gherkin\Node\TableNode|null $formData
+	 * @param \Behat\Gherkin\Node\TableNode|null $groupsList
 	 */
 	public function theGroupsShouldBe($groupsList) {
 		if ($groupsList instanceof \Behat\Gherkin\Node\TableNode) {
@@ -139,7 +152,7 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	/**
 	 * @Then /^subadmin groups returned are$/
-	 * @param \Behat\Gherkin\Node\TableNode|null $formData
+	 * @param \Behat\Gherkin\Node\TableNode|null $groupsList
 	 */
 	public function theSubadminGroupsShouldBe($groupsList) {
 		if ($groupsList instanceof \Behat\Gherkin\Node\TableNode) {
@@ -153,7 +166,7 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	/**
 	 * @Then /^subadmin users returned are$/
-	 * @param \Behat\Gherkin\Node\TableNode|null $formData
+	 * @param \Behat\Gherkin\Node\TableNode|null $groupsList
 	 */
 	public function theSubadminUsersShouldBe($groupsList) {
 		$this->theSubadminGroupsShouldBe($groupsList);
@@ -161,7 +174,7 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	/**
 	 * @Then /^apps returned are$/
-	 * @param \Behat\Gherkin\Node\TableNode|null $formData
+	 * @param \Behat\Gherkin\Node\TableNode|null $appList
 	 */
 	public function theAppsShouldBe($appList) {
 		if ($appList instanceof \Behat\Gherkin\Node\TableNode) {
@@ -202,11 +215,18 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	}
 
 	/**
+	 * @Given /^using dav path "([^"]*)"$/
+	 */
+	public function usingDavPath($davPath) {
+		$this->davPath = $davPath;
+	}
+
+	/**
 	 * @Given /^user "([^"]*)" exists$/
 	 */
 	public function assureUserExists($user) {
 		try {
-			$this->userExists($user);			
+			$this->userExists($user);
 		} catch (\GuzzleHttp\Exception\ClientException $ex) {
 			$previous_user = $this->currentUser;
 			$this->currentUser = "admin";
@@ -228,8 +248,23 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	}
 
 	/**
-	 * @Given /^user "([^"]*)" belongs to group "([^"]*)"$/
+	 * @Then /^check that user "([^"]*)" belongs to group "([^"]*)"$/
 	 */
+	public function checkThatUserBelongsToGroup($user, $group) {
+		$fullUrl = $this->baseUrl . "v2.php/cloud/users/$user/groups";
+		$client = new Client();
+		$options = [];
+		if ($this->currentUser === 'admin') {
+			$options['auth'] = $this->adminUser;
+		}
+
+		$this->response = $client->get($fullUrl, $options);
+		$respondedArray = $this->getArrayOfGroupsResponded($this->response);
+		sort($respondedArray);
+		PHPUnit_Framework_Assert::assertContains($group, $respondedArray);
+		PHPUnit_Framework_Assert::assertEquals(200, $this->response->getStatusCode());
+	}
+
 	public function userBelongsToGroup($user, $group) {
 		$fullUrl = $this->baseUrl . "v2.php/cloud/users/$user/groups";
 		$client = new Client();
@@ -241,8 +276,26 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		$this->response = $client->get($fullUrl, $options);
 		$groups = array($group);
 		$respondedArray = $this->getArrayOfGroupsResponded($this->response);
-		PHPUnit_Framework_Assert::assertEquals($groups, $respondedArray, "", 0.0, 10, true);
-		PHPUnit_Framework_Assert::assertEquals(200, $this->response->getStatusCode());
+
+		if (array_key_exists($group, $respondedArray)) {
+			return True;
+		} else{
+			return False;
+		}
+	}
+
+	/**
+	 * @Given /^user "([^"]*)" belongs to group "([^"]*)"$/
+	 */
+	public function assureUserBelongsToGroup($user, $group){
+		if (!$this->userBelongsToGroup($user, $group)){			
+			$previous_user = $this->currentUser;
+			$this->currentUser = "admin";
+			$this->addingUserToGroup($user, $group);
+			$this->currentUser = $previous_user;
+		}
+		$this->checkThatUserBelongsToGroup($user, $group);
+
 	}
 
 	/**
@@ -276,7 +329,6 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		}
 
 		$this->response = $client->get($fullUrl, $options);
-		$subadmins = array($user);
 		$respondedArray = $this->getArrayOfSubadminsResponded($this->response);
 		sort($respondedArray);
 		PHPUnit_Framework_Assert::assertContains($user, $respondedArray);
@@ -295,7 +347,6 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		}
 
 		$this->response = $client->get($fullUrl, $options);
-		$subadmins = array($user);
 		$respondedArray = $this->getArrayOfSubadminsResponded($this->response);
 		sort($respondedArray);
 		PHPUnit_Framework_Assert::assertNotContains($user, $respondedArray);
@@ -498,7 +549,7 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	 */
 	public function assureGroupExists($group) {
 		try {
-			$this->groupExists($group);			
+			$this->groupExists($group);
 		} catch (\GuzzleHttp\Exception\ClientException $ex) {
 			$previous_user = $this->currentUser;
 			$this->currentUser = "admin";
@@ -558,11 +609,34 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	}
 
 	/**
-	 * @When /^creating a public share with$/
+	 * @When /^creating a share with$/
 	 * @param \Behat\Gherkin\Node\TableNode|null $formData
 	 */
-	public function createPublicShare($body) {
-		$this->sendingToWith("POST", "/apps/files_sharing/api/v1/shares", $body);
+	public function creatingShare($body) {
+		$fullUrl = $this->baseUrl . "v{$this->apiVersion}.php/apps/files_sharing/api/v1/shares";
+		$client = new Client();
+		$options = [];
+		if ($this->currentUser === 'admin') {
+			$options['auth'] = $this->adminUser;
+		} else {
+			$options['auth'] = [$this->currentUser, $this->regularUser];
+		}
+
+		if ($body instanceof \Behat\Gherkin\Node\TableNode) {
+			$fd = $body->getRowsHash();
+			if (array_key_exists('expireDate', $fd)){
+				$dateModification = $fd['expireDate'];
+				$fd['expireDate'] = date('Y-m-d', strtotime($dateModification));
+			}
+			$options['body'] = $fd;
+		}
+
+		try {
+			$this->response = $client->send($client->createRequest("POST", $fullUrl, $options));
+		} catch (\GuzzleHttp\Exception\ClientException $ex) {
+			$this->response = $ex->getResponse();
+		}
+
 		$this->lastShareData = $this->response->xml();
 	}
 
@@ -572,7 +646,12 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	public function checkPublicSharedFile($filename) {
 		$client = new Client();
 		$options = [];
-		$url = $this->lastShareData->data[0]->url;
+		if (count($this->lastShareData->data->element) > 0){
+			$url = $this->lastShareData->data[0]->url;
+		}
+		else{
+			$url = $this->lastShareData->data->url;
+		}
 		$fullUrl = $url . "/download";
 		$options['save_to'] = "./$filename";
 		$this->response = $client->get($fullUrl, $options);
@@ -580,8 +659,8 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		$fileinfo = $finfo->file("./$filename", FILEINFO_MIME_TYPE);
 		PHPUnit_Framework_Assert::assertEquals($fileinfo, "text/plain");
 		if (file_exists("./$filename")) {
-        	unlink("./$filename");
-        }
+			unlink("./$filename");
+		}
 	}
 
 	/**
@@ -590,7 +669,13 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	public function checkPublicSharedFileWithPassword($filename, $password) {
 		$client = new Client();
 		$options = [];
-		$token = $this->lastShareData->data[0]->token;
+		if (count($this->lastShareData->data->element) > 0){
+			$token = $this->lastShareData->data[0]->token;
+		}
+		else{
+			$token = $this->lastShareData->data->token;
+		}
+
 		$fullUrl = substr($this->baseUrl, 0, -4) . "public.php/webdav";
 		$options['auth'] = [$token, $password];
 		$options['save_to'] = "./$filename";
@@ -599,8 +684,8 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		$fileinfo = $finfo->file("./$filename", FILEINFO_MIME_TYPE);
 		PHPUnit_Framework_Assert::assertEquals($fileinfo, "text/plain");
 		if (file_exists("./$filename")) {
-        	unlink("./$filename");
-        }
+			unlink("./$filename");
+		}
 	}
 
 	/**
@@ -622,12 +707,46 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		PHPUnit_Framework_Assert::assertEquals(200, $this->response->getStatusCode());
 	}
 
+	/**
+	 * @When /^Updating last share with$/
+	 * @param \Behat\Gherkin\Node\TableNode|null $body
+	 */
+	public function updatingLastShare($body) {
+		$share_id = $this->lastShareData->data[0]->id;
+		$fullUrl = $this->baseUrl . "v{$this->apiVersion}.php/apps/files_sharing/api/v{$this->sharingApiVersion}/shares/$share_id";
+		$client = new Client();
+		$options = [];
+		if ($this->currentUser === 'admin') {
+			$options['auth'] = $this->adminUser;
+		} else {
+			$options['auth'] = [$this->currentUser, $this->regularUser];
+		}
+
+		if ($body instanceof \Behat\Gherkin\Node\TableNode) {
+			$fd = $body->getRowsHash();
+			if (array_key_exists('expireDate', $fd)){
+				$dateModification = $fd['expireDate'];
+				$fd['expireDate'] = date('Y-m-d', strtotime($dateModification));
+			}
+			$options['body'] = $fd;
+		}
+
+		try {
+			$this->response = $client->send($client->createRequest("PUT", $fullUrl, $options));
+		} catch (\GuzzleHttp\Exception\ClientException $ex) {
+			$this->response = $ex->getResponse();
+		}
+
+		PHPUnit_Framework_Assert::assertEquals(200, $this->response->getStatusCode());
+	}
+
+
 	public function createShare($user,
-								$path = null, 
-								$shareType = null, 
-								$shareWith = null, 
-								$publicUpload = null, 
-								$password = null, 
+								$path = null,
+								$shareType = null,
+								$shareWith = null,
+								$publicUpload = null,
+								$password = null,
 								$permissions = null){
 		$fullUrl = $this->baseUrl . "v{$this->apiVersion}.php/apps/files_sharing/api/v{$this->sharingApiVersion}/shares";
 		$client = new Client();
@@ -640,26 +759,26 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		}
 		$fd = [];
 		if (!is_null($path)){
-			$fd['path'] = $path; 
+			$fd['path'] = $path;
 		}
 		if (!is_null($shareType)){
-			$fd['shareType'] = $shareType; 
+			$fd['shareType'] = $shareType;
 		}
 		if (!is_null($shareWith)){
-			$fd['shareWith'] = $shareWith; 
+			$fd['shareWith'] = $shareWith;
 		}
 		if (!is_null($publicUpload)){
-			$fd['publicUpload'] = $publicUpload; 
+			$fd['publicUpload'] = $publicUpload;
 		}
 		if (!is_null($password)){
-			$fd['password'] = $password; 
+			$fd['password'] = $password;
 		}
 		if (!is_null($permissions)){
-			$fd['permissions'] = $permissions; 
+			$fd['permissions'] = $permissions;
 		}
 
 		$options['body'] = $fd;
-		
+
 		try {
 			$this->response = $client->send($client->createRequest("POST", $fullUrl, $options));
 			$this->lastShareData = $this->response->xml();
@@ -669,17 +788,49 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 
 	}
 
-	public function isFieldInResponse($field, $content_expected){
+	public function isExpectedUrl($possibleUrl, $finalPart){
+		$baseUrlChopped = substr($this->baseUrl, 0, -4);
+		$endCharacter = strlen($baseUrlChopped) + strlen($finalPart);
+		return (substr($possibleUrl,0,$endCharacter) == "$baseUrlChopped" . "$finalPart");
+	}
+
+	public function isFieldInResponse($field, $contentExpected){
 		$data = $this->response->xml()->data[0];
-		foreach($data as $element) {
-			if ($content_expected == "A_NUMBER"){
-				return is_numeric((string)$element->$field);
-			} 
-			elseif ($element->$field == $content_expected){
-				return True;
-			}
+		if ((string)$field == 'expiration'){
+			$contentExpected = date('Y-m-d', strtotime($contentExpected)) . " 00:00:00";
 		}
-		return False;
+		if (count($data->element) > 0){
+			foreach($data as $element) {
+				if ($contentExpected == "A_TOKEN"){
+					return (strlen((string)$element->$field) == 15);
+				}
+				elseif ($contentExpected == "A_NUMBER"){
+					return is_numeric((string)$element->$field);
+				}
+				elseif($contentExpected == "AN_URL"){
+					return $this->isExpectedUrl((string)$element->$field, "index.php/s/");
+				}
+				elseif ((string)$element->$field == $contentExpected){
+					return True;
+				}
+			}
+
+			return False;
+		} else {
+			if ($contentExpected == "A_TOKEN"){
+					return (strlen((string)$data->$field) == 15);
+			}
+			elseif ($contentExpected == "A_NUMBER"){
+					return is_numeric((string)$data->$field);
+			}
+			elseif($contentExpected == "AN_URL"){
+					return $this->isExpectedUrl((string)$data->$field, "index.php/s/");
+			}
+			elseif ($data->$field == $contentExpected){
+					return True;
+			}
+			return False;
+		}
 	}
 
 	/**
@@ -710,10 +861,10 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 		PHPUnit_Framework_Assert::assertEquals(False, $this->isFieldInResponse('share_with', "$user"));
 	}
 
-	public function isUserInSharedData($user){
+	public function isUserOrGroupInSharedData($userOrGroup){
 		$data = $this->response->xml()->data[0];
 		foreach($data as $element) {
-			if ($element->share_with == $user){
+			if ($element->share_with == $userOrGroup){
 				return True;
 			}
 		}
@@ -733,13 +884,71 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 			$options['auth'] = [$user1, $this->regularUser];
 		}
 		$this->response = $client->get($fullUrl, $options);
-		if ($this->isUserInSharedData($user2)){
+		if ($this->isUserOrGroupInSharedData($user2)){
 			return;
 		} else {
 			$this->createShare($user1, $filepath, 0, $user2, null, null, null);
 		}
 		$this->response = $client->get($fullUrl, $options);
-		PHPUnit_Framework_Assert::assertEquals(True, $this->isUserInSharedData($user2));
+		PHPUnit_Framework_Assert::assertEquals(True, $this->isUserOrGroupInSharedData($user2));
+	}
+
+	/**
+	 * @Given /^file "([^"]*)" from user "([^"]*)" is shared with group "([^"]*)"$/
+	 */
+	public function assureFileIsSharedWithGroup($filepath, $user, $group){
+		$fullUrl = $this->baseUrl . "v{$this->apiVersion}.php/apps/files_sharing/api/v{$this->sharingApiVersion}/shares" . "?path=$filepath";
+		$client = new Client();
+		$options = [];
+		if ($user === 'admin') {
+			$options['auth'] = $this->adminUser;
+		} else {
+			$options['auth'] = [$user, $this->regularUser];
+		}
+		$this->response = $client->get($fullUrl, $options);
+		if ($this->isUserOrGroupInSharedData($group)){
+			return;
+		} else {
+			$this->createShare($user, $filepath, 1, $group, null, null, null);
+		}
+		$this->response = $client->get($fullUrl, $options);
+		PHPUnit_Framework_Assert::assertEquals(True, $this->isUserOrGroupInSharedData($group));
+	}
+
+	public function makeDavRequest($user, $method, $path, $headers){
+		$fullUrl = substr($this->baseUrl, 0, -4) . $this->davPath . "$path";
+		$client = new Client();
+		$options = [];
+		if ($user === 'admin') {
+			$options['auth'] = $this->adminUser;
+		} else {
+			$options['auth'] = [$user, $this->regularUser];
+		}
+		$request = $client->createRequest($method, $fullUrl, $options);
+		foreach ($headers as $key => $value) {
+			$request->addHeader($key, $value);	
+		}
+		//$this->response = $client->send($request);
+		return $client->send($request);
+	}
+
+	/**
+	 * @Given /^User "([^"]*)" moved file "([^"]*)" to "([^"]*)"$/
+	 */
+	public function userMovedFile($user, $fileSource, $fileDestination){
+		$fullUrl = substr($this->baseUrl, 0, -4) . $this->davPath;
+		$headers['Destination'] = $fullUrl . $fileDestination;
+		$this->response = $this->makeDavRequest($user, "MOVE", $fileSource, $headers);
+		PHPUnit_Framework_Assert::assertEquals(201, $this->response->getStatusCode());
+	}
+
+	/**
+	 * @When /^User "([^"]*)" moves file "([^"]*)" to "([^"]*)"$/
+	 */
+	public function userMovesFile($user, $fileSource, $fileDestination){
+		$fullUrl = substr($this->baseUrl, 0, -4) . $this->davPath;
+		$headers['Destination'] = $fullUrl . $fileDestination;
+		$this->response = $this->makeDavRequest($user, "MOVE", $fileSource, $headers);
 	}
 
 	/**
@@ -761,14 +970,37 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	}
 
 	/**
+	 * @Then /^last share_id is included in the answer$/
+	 */
+	public function checkingLastShareIDIsIncluded(){
+		$share_id = $this->lastShareData->data[0]->id;
+		if (!$this->isFieldInResponse('id', $share_id)){
+			PHPUnit_Framework_Assert::fail("Share id $share_id not found in response");
+		}
+	}
+
+	/**
+	 * @Then /^last share_id is not included in the answer$/
+	 */
+	public function checkingLastShareIDIsNotIncluded(){
+		$share_id = $this->lastShareData->data[0]->id;
+		if ($this->isFieldInResponse('id', $share_id)){
+			PHPUnit_Framework_Assert::fail("Share id $share_id has been found in response");
+		}
+	}
+
+	/**
 	 * @Then /^Share fields of last share match with$/
 	 * @param \Behat\Gherkin\Node\TableNode|null $formData
 	 */
 	public function checkShareFields($body){
 		if ($body instanceof \Behat\Gherkin\Node\TableNode) {
 			$fd = $body->getRowsHash();
+
 			foreach($fd as $field => $value) {
-				PHPUnit_Framework_Assert::assertEquals(True, $this->isFieldInResponse($field, $value));
+				if (!$this->isFieldInResponse($field, $value)){
+					PHPUnit_Framework_Assert::fail("$field" . " doesn't have value " . "$value");
+				}
 			}
 		}
 	}
@@ -776,7 +1008,7 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	public static function removeFile($path, $filename){
 		if (file_exists("$path" . "$filename")) {
 			unlink("$path" . "$filename");
-        }
+		}
 	}
 
 	/**
@@ -785,6 +1017,9 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	public static function addFilesToSkeleton(){
 		for ($i=0; $i<5; $i++){
 			file_put_contents("../../core/skeleton/" . "textfile" . "$i" . ".txt", "ownCloud test text file\n");
+		}
+		if (!file_exists("../../core/skeleton/FOLDER")) {
+			mkdir("../../core/skeleton/FOLDER", 0777, true);
 		}
 
 	}
@@ -795,7 +1030,10 @@ class FeatureContext implements Context, SnippetAcceptingContext {
 	public static function removeFilesFromSkeleton(){
 		for ($i=0; $i<5; $i++){
 			self::removeFile("../../core/skeleton/", "textfile" . "$i" . ".txt");
-        }
+		}
+		if (is_dir("../../core/skeleton/FOLDER")) {
+			rmdir("../../core/skeleton/FOLDER");
+		}
 	}
 
 	/**
