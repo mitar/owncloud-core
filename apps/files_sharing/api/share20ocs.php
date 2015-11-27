@@ -223,6 +223,9 @@ class Share20OCS {
 			return new \OC_OCS_Result(null, 404, 'invalid permissions');
 		}
 
+		// Shares always require read permissions
+		$permissions |= \OCP\Constants::PERMISSION_READ;
+
 		if ($path instanceof \OCP\Files\File) {
 			// Single file shares should never have delete or create permissions
 			$permissions &= ~\OCP\Constants::PERMISSION_DELETE;
