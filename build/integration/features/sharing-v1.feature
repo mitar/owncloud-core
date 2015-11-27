@@ -263,7 +263,7 @@ Feature: sharing
       | file_source | A_NUMBER |
       | file_target | /textfile0.txt |
       | path | /textfile0.txt |
-      | permissions | 23 |
+      | permissions | 19 |
       | stime | A_NUMBER |
       | storage | A_NUMBER |
       | mail_send | 0 |
